@@ -1,113 +1,123 @@
 
 # -------------------INVENIA SYSTEMS ------------------- #
-# ------------ https://inveniasystems.com ------------ #
+# ------------- https://inveniasystems.com ------------- #
 # Version - 0.1
 # Revision - 00
 # Date : 04-04-2024
-# Author : M.M. Hossain
+# Author : M.M. Hossain | N. K. Pal
 # license : GPLv3 | https://www.gnu.org/licenses/gpl-3.0.html
 
 import os
 import shutil
 import subprocess
 import datetime
-from datetime import date
-from pycomm3 import SLCDriver
+# from datetime import date
 import time
+import logging
+from pycomm3 import SLCDriver
 import sqlite3
 from fpdf import FPDF
 conn = sqlite3.connect("data.db")
 # create cursor
 cr = conn.cursor()
+logging.basicConfig(filename='Error_Log.txt', level=logging.ERROR, format='%(asctime)s %(levelname)s: %(message)s')
 
 
 # pdf header and footer class
 class PDF(FPDF):
     def __init__(self, **kwargs):
         super(PDF, self).__init__(**kwargs)
-        self.add_font('NotoSanMono', '', '/usr/share/fonts/noto//NotoSansMono-Regular.ttf')
+        self.add_font('NotoSanMono', '', '/usr/share/fonts/noto/NotoSansMono-Regular.ttf')
         # self.add_font('NotoSanMono', '',
         #              '/usr/share/fonts/TTF/NotoSansMono-Light-Nerd-Font-Complete.ttf')
-
-    def header(self):
+# This heading will be on every page
+    # def header(self):
         # self.add_page()
         # self.image('inv_logo.png', 10, 4, 25)
-        self.set_font('NotoSanMono', '', 12)
-        self.cell(0, 5, 'CLIENT          :- ALBERT DAVID LIMITED, KOLKATA.', border=False, new_x="LMARGIN", new_y="NEXT", align='L')
-        self.ln(1)
+        # self.set_font('NotoSanMono', '', 12)
+        # self.cell(0, 5, 'CLIENT          :- ALBERT DAVID LIMITED, KOLKATA.', border=False, new_x="LMARGIN", new_y="NEXT", align='L')
+        # self.ln(1)
 
 
-pdf = PDF(orientation='P', unit='mm', format=(210, 280))
-
-
-def export_pdf(data, para):
+def export_pdf(data, para, run_no):
+    global plc_date
+    # creating a pdf object to create a new pdf page
+    pdf = PDF(orientation='P', unit='mm', format=(210, 280))
+    # setup pdf first page heading. It does not repeast.
     pdf.add_page()
-    temp_date = date.today()
     pdf.set_auto_page_break(auto=True, margin=10)
+    pdf.set_font('NotoSanMono', '', 12)
+    pdf.cell(0, 8, 'CLIENT          :- ALBERT DAVID LIMITED, KOLKATA.', border=False, new_x="LMARGIN", new_y="NEXT", align='L')
+    pdf.cell(0, 8, 'CLIENT          :- ALBERT DAVID LIMITED, KOLKATA.', border=False, new_x="LMARGIN", new_y="NEXT", align='L')
     pdf.cell(0, 8, 'MANUFACTURED BY :- TSA PROCESS EQUIPMENT PRIVATE LIMITED. MUMBAI.', align='L')
     pdf.cell(0, 8, '', border=False, new_x="LMARGIN", new_y="NEXT", align='L')
     pdf.cell(0, 8, 'EQUIPMENT       :-  CIP AND SIP SYSTEM OF VIAL LINE ', align='L')
     pdf.cell(0, 8, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
-    pdf.cell(0, 8, txt=f'DATE            :- {temp_date}', new_x="LMARGIN", new_y="NEXT", align="L")
+    pdf.cell(0, 8, text=f'DATE            :- {plc_date}', new_x="LMARGIN", new_y="NEXT", align="L")
     for i in range(1, 21):
-        pdf.cell(10, 3, txt='____', align="C")
+        pdf.cell(10, 3, text='____', align="C")
 
-    # HEADING LINE OF DATA
+    # heading for table
     pdf.cell(15, 5, '', new_x="LMARGIN", new_y="NEXT", align="L")
-    pdf.cell(30, 5, txt='TIME', align="L")
-    pdf.cell(28, 5, txt='pH1001', align="C")
-    pdf.cell(28, 5, txt='CS1001', align="C")
-    pdf.cell(28, 5, txt='PT1001', align="C")
-    pdf.cell(28, 5, txt='TS1001', align="C")
-    pdf.cell(28, 5, txt='PT1002', align="C")
-    pdf.cell(28, 5, txt='TS1002', align="C")
+    pdf.cell(30, 5, text='TIME', align="L")
+    pdf.cell(28, 5, text='pH1001', align="C")
+    pdf.cell(28, 5, text='CS1001', align="C")
+    pdf.cell(28, 5, text='PT1001', align="C")
+    pdf.cell(28, 5, text='TS1001', align="C")
+    pdf.cell(28, 5, text='PT1002', align="C")
+    pdf.cell(28, 5, text='TS1002', align="C")
     pdf.cell(0, 5, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
-    pdf.cell(30, 5, txt='', align="C")
-    pdf.cell(28, 5, txt='pH', align="C")
-    pdf.cell(28, 5, txt='uS/CM', align="C")
-    pdf.cell(28, 5, txt='BAR', align="C")
-    pdf.cell(28, 5, txt='Deg.C', align="C")
-    pdf.cell(28, 5, txt='BAR', align="C")
-    pdf.cell(28, 5, txt='Deg.C', align="C")
+    pdf.cell(30, 5, text='', align="C")
+    pdf.cell(28, 5, text='pH', align="C")
+    pdf.cell(28, 5, text='uS/CM', align="C")
+    pdf.cell(28, 5, text='BAR', align="C")
+    pdf.cell(28, 5, text='Deg.C', align="C")
+    pdf.cell(28, 5, text='BAR', align="C")
+    pdf.cell(28, 5, text='Deg.C', align="C")
     pdf.cell(0, 5, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
+    # puting saperator line
     for i in range(1, 21):
-        pdf.cell(10, 3, txt='____', align="C")
+        pdf.cell(10, 3, text='____', align="C")
 
     # parameter setting data
     pdf.cell(15, 5, '', new_x="LMARGIN", new_y="NEXT", align="L")
-    pdf.cell(28, 5, txt='HL', align="L")
-    pdf.cell(28, 5, txt='', align="C")
-    pdf.cell(28, 5, txt='', align="C")
-    pdf.cell(28, 5, txt=f'{para[0]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[1]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[2]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[3]}', align="C")
+    pdf.cell(28, 5, text='HL', align="L")
+    pdf.cell(28, 5, text='', align="C")
+    pdf.cell(28, 5, text='', align="C")
+    pdf.cell(28, 5, text=f'{para[3]}', align="C")
+    pdf.cell(28, 5, text=f'{para[4]}', align="C")
+    pdf.cell(28, 5, text=f'{para[5]}', align="C")
+    pdf.cell(28, 5, text=f'{para[6]}', align="C")
     pdf.cell(0, 5, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
-    pdf.cell(28, 5, txt='LL', align="L")
-    pdf.cell(28, 5, txt='', align="C")
-    pdf.cell(28, 5, txt='', align="C")
-    pdf.cell(28, 5, txt=f'{para[4]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[5]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[6]}', align="C")
-    pdf.cell(28, 5, txt=f'{para[7]}', align="C")
+    pdf.cell(28, 5, text='LL', align="L")
+    pdf.cell(28, 5, text='', align="C")
+    pdf.cell(28, 5, text='', align="C")
+    pdf.cell(28, 5, text=f'{round(para[7], 2)}', align="C")
+    pdf.cell(28, 5, text=f'{round(para[8], 3)}', align="C")
+    pdf.cell(28, 5, text=f'{round(para[9], 2)}', align="C")
+    pdf.cell(28, 5, text=f'{round(para[10], 2)}', align="C")
     pdf.cell(0, 5, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
+    # puting saperator line on pdf
     for i in range(1, 21):
-        pdf.cell(10, 3, txt='____', align="C")
+        pdf.cell(10, 3, text='____', align="C")
 
-    # write data on pdf
+    # print process data on pdf
     pdf.set_font("NotoSanMono", size=12)
     pdf.cell(0, 10, new_x="LMARGIN", new_y="NEXT", align="L")
     x = 0
     y = 0
+    # print(data[x])
+    """
+    i[1:] define that the loop will start from position - "1" not from "0". As in 1 positon data is not require to print on pdf.
+    """
     for i in data:
-        for j in i:
+        for j in i[1:]:
             pdf.cell(28, 5, f'{j}', align="C")
             y += 1
         pdf.cell(0, 5, '', border=False, new_x="LMARGIN", new_y="NEXT", align="L")
         x += 1
-
     pdf.output(f'CIP_SIP_Report_{run_no}' + '.pdf')
-    # move_pdf()  # move pdf to another location
+    move_pdf()  # move pdf to another location
 
 
 # create a table for current process data
@@ -124,28 +134,33 @@ def create_process_data_table():
         ts2 REAL
         )""")
     conn.commit()
+    print("Database Table named 'process_data' has created")
 
 
 # create a table for current process data
 def create_para_table():
-    cr.execute("""CREATE TABLE IF NOT EXISTS setpoint_data(
+    cr.execute("""CREATE TABLE IF NOT EXISTS setpoint_data (
         run_no INTEGER,
         date TEXT,
-        time  TEXT,
+        time TEXT,
         pt1_sp REAL,
         pt1_max REAL,
         pt2_sp REAL,
         pt2_max REAL,
         ts1_sp REAL,
         ts1_max REAL,
-        ts2_sp REAL
-        ts2_max REAL,
+        ts2_sp REAL,
+        ts2_max REAL
         )""")
     conn.commit()
+    print("Database Table named 'setpoint_data' has created")
 
 
 # log parameters for current process
 def log_para_data(para):
+    global run_no
+    global plc_date
+    global plc_time
     cr.execute("""INSERT INTO setpoint_data(
         run_no,
         date,
@@ -153,24 +168,25 @@ def log_para_data(para):
         pt1_sp,
         pt1_max,
         pt2_sp,
-        pt2_mad,
+        pt2_max,
         ts1_sp,
         ts1_max,
         ts2_sp,
-        ts2_max,
+        ts2_max
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""", (
-        para[0][1],
-        para[1][1],
-        para[2][1],
-        para[3][1],
-        para[4][1],
-        para[5][1],
-        para[6][1],
+        run_no,
+        plc_date,
+        plc_time,
         para[7][1],
         para[8][1],
         para[9][1],
-        para[10][1],))
+        para[10][1],
+        para[11][1],
+        para[12][1],
+        para[13][1],
+        para[14][1]))
     conn.commit()
+    print(f'Process Parameter with Run No.: {run_no} recorded')
 
 
 # log parameter for each run time
@@ -178,12 +194,6 @@ def log_process_data(data):
     global run_no
     global plc_date
     global plc_time
-    global ph1
-    global cs1
-    global pt1
-    global ts1
-    global pt2
-    global ts2
     cr.execute("""INSERT INTO process_data(
         run_no,
         date,
@@ -195,71 +205,40 @@ def log_process_data(data):
         pt2,
         ts2
         ) VALUES (?,?,?,?,?,?,?,?,?)""", (
-        data[0][1],
-        data[1][1],
-        data[2][1],
-        data[3][1],
-        data[4][1],
-        data[5][1],
-        data[6][1],
-        data[7][1],
-        data[8][1]))
+        run_no,
+        plc_date,
+        plc_time,
+        round(data[7][1], 2),
+        round(data[8][1], 2),
+        round(data[9][1], 2),
+        round(data[10][1], 2),
+        round(data[11][1], 2),
+        round(data[12][1], 2)))
     conn.commit()
+    print(f'Process Data with Run No.: {run_no} recorded')
 
 
 # read process data from plc
 def read_data():
-    global run_no
     global plc_date
     global plc_time
-    global ph1
-    global cs1
-    global pt1
-    global ts1
-    global pt2
-    global ts2
     with SLCDriver('192.168.0.1') as plc:
         result = plc.read('N17:0', 'N17:1', 'N17:2', 'N17:3', 'N17:4', 'N17:5', 'N17:6', 'F12:0', 'F12:1', 'F12:2', 'F12:3', 'F12:4', 'F12:5')
     # print(result)
     plc_date = f'{result[0][1]}/{result[1][1]}/{result[2][1]}'
     plc_time = f'{result[3][1]}:{result[4][1]}:{result[5][1]}'
-    run_no = result[6][1]
-    ph1 = round(result[7][1], 2)
-    cs1 = round(result[8][1], 2)
-    pt1 = round(result[9][1], 2)
-    ts1 = round(result[10][1], 2)
-    pt2 = round(result[11][1], 2)
-    ts2 = round(result[12][1], 2)
     return result
 
 
 # read process parameter from plc
 def read_para():
-    global run_no
     global plc_date
     global plc_time
-    global pt1_sp
-    global pt1_max
-    global pt2_sp
-    global pt2_max
-    global ts1_sp
-    global ts1_max
-    global ts2_sp
-    global ts2_max
     with SLCDriver('192.168.0.1') as plc:
         result = plc.read('N17:0', 'N17:1', 'N17:2', 'N17:3', 'N17:4', 'N17:5', 'N17:6', 'N7:59', 'N7:56', 'N7:68', 'N7:76', 'N7:62', 'N7:61', 'N7:64', 'N7:63')
-    print(result)
+    # print(result)
     plc_date = f'{result[0][1]}/{result[1][1]}/{result[2][1]}'
     plc_time = f'{result[3][1]}:{result[4][1]}:{result[5][1]}'
-    run_no = result[6][1]
-    pt1_sp = round(result[7][1], 2)
-    pt1_max = round(result[8][1], 2)
-    pt2_sp = round(result[9][1], 2)
-    pt2_max = round(result[10][1], 2)
-    ts1_sp = round(result[11][1], 2)
-    ts1_max = round(result[12][1], 2)
-    ts2_sp = round(result[13][1], 2)
-    ts2_max = round(result[14][1], 2)
     return result
 
 
@@ -275,7 +254,7 @@ def read_ctrl_bits():
     global record_period
     global run_no_for_print
     with SLCDriver('192.168.0.1') as plc:
-        result = plc.read('B13:2/0', 'B13:2/1', 'B13:2/1', 'B13:2/1', 'B13:2/4', 'B13:2/5', 'B13:2/6', 'B13:2/7', 'B13:2/8', 'B13:2/9', 'B13:2/10', 'B13:2/11', 'B13:2/12', 'B13:2/13', 'B13:2/14', 'B13:2/15', 'N17:7', 'N17:8')
+        result = plc.read('B13:5/0', 'B13:2/1', 'B13:2/1', 'B13:2/1', 'B13:2/4', 'B13:2/5', 'B13:2/6', 'B13:2/7', 'B13:2/8', 'B13:2/9', 'B13:2/10', 'B13:2/11', 'B13:2/12', 'B13:2/13', 'B13:2/14', 'B13:2/15', 'N17:7', 'N17:8')
     print_cmd = result[0][1]
     log_start = result[4][1]
     delete_record = result[6][1]
@@ -285,34 +264,36 @@ def read_ctrl_bits():
     report_loging_fb2 = result[10][1]
     run_no_for_print = result[16][1]
     record_period = result[17][1]
+    # print(result)
     return result
 
 
-def write_status(tag, value):
+def write_status(tag_value):
     with SLCDriver('192.168.0.1') as plc:
-        plc.write(tag, value)
+        plc.write(tag_value)
 
 
 def fetch_sql_data(run_no):
     cr.execute("SELECT * FROM process_data WHERE run_no = ?", (run_no,))
     result = cr.fetchall()
+    # print(result)
     conn.commit()
     return result
 
 
 def fetch_sql_para(run_no):
     cr.execute("SELECT * FROM setpoint_data WHERE run_no = ?", (run_no,))
-    result = cr.fetchall()
+    result = cr.fetchone()
+    # print(result)
     conn.commit()
     return result
 
 
 def check_run_no(run_no):
     # print(run_no)
-    cr.execute("SELECT * FROM process_data WHERE run_no = ?", (run_no,))
-    items = cr.fetchall()
-    # print(f'items {items}')
-    if len(items) == 0:
+    cr.execute("SELECT COUNT(run_no) FROM process_data WHERE run_no = ?", (run_no,))
+    items = cr.fetchone()
+    if items[0] == 0:
         result = 0
     else:
         result = 1
@@ -320,10 +301,16 @@ def check_run_no(run_no):
     return result
 
 
-def check_last_run_no():
-    cr.execute("SELECT * ROM process_data ORDER BY run_no DESC LIMI 1")
-    item = cr.fetchone()
-    run_no = item[0]
+def fetch_last_run_no():
+    cr.execute("SELECT COUNT(*) FROM process_data")
+    count = cr.fetchone()
+    if count[0] > 0:
+        cr.execute("SELECT * FROM process_data ORDER BY run_no DESC LIMIT 1")
+        item = cr.fetchone()
+        run_no = item[0]
+    else:
+        run_no = 0
+    # print(f'Run No. : {run_no}')
     return run_no
 
 
@@ -351,8 +338,8 @@ def print_pdf(run_no):
     if os.path.exists(file_dir):
         print_process = subprocess.Popen(["lp", f"{file_dir}"])
         print_process.wait()
-    else:
-        write_status()
+    # else:
+        # write_status()
     time.sleep(0.7)
 
 
@@ -367,11 +354,27 @@ def copy_report_folder(pendrive_path):
     time.sleep(1)
 
 
+# for blinker any mbit
+def blinker(f):
+    global s_time2
+    global blink
+    tdiff = (time.time() - s_time2)
+    s_time2 = time.time()
+    value = 0
+    if (tdiff >= f):
+        blink = not blink
+        if blink == 1:
+            value = 1
+        else:
+            value = 0
+        # # print(value)
+    return value
+
+
 pwd_here = os.getcwd()  # to get current working directory
 uname = "pi"
 """
 all the tage which need to read
-run_no_tag = 'N17:6'
 pt1_tag = 'F12:0'
 pt2_tag = 'F12:2'
 th1_tag = 'F12:3'
@@ -401,74 +404,106 @@ min = 'N17:4'
 sec = 'N17:5'
 
 log_start = 'B13:2/4'
-
-global print_cmd  # B13:2/1
-global log_start  # B13:2/4
-global delete_record  # B13:2/6
-global wipe_all  # B13:2/7
-global wipe_all_fb  # B13:2/8
-global report_loging_fb1  # B13:2/9
-global report_loging_fb2  # B13:2/10
-global record_period  # N17:8
+print_cmd  # B13:2/1
+log_start  # B13:2/4
+delete_record  # B13:2/6
+wipe_all  # B13:2/7
+wipe_all_fb  # B13:2/8
+report_loging_fb1  # B13:2/9
+report_loging_fb2  # B13:2/10
+record_period  # N17:8
 """
-
+# decclearing variables which
 count = 0
 record_period = 60
 s_time1 = time.time()
 s_time2 = time.time()
+s_time3 = time.time()
 pdf_export = 0
-print_start = 0
+print_cmd = 0
 process_end = 0
 sp_record_en = 1
 print_cmd_set_bit = 1
 log_start = 0
 log_start_prev = 0
+run_no_tag = 'N17:6'
+# run_no = 0
+start_logging = 0
+create_process_data_table()
+create_para_table()
+blink = 0
 
 while True:
     try:
         log_start_prev = log_start  # store log_start previous status
         read_ctrl_bits()
-
-        if not log_start_prev and log_start:
-            run_no = check_last_run_no()
+        # print(f'record_period = {record_period}')
+        # print(f'log_start = {log_start}')
+        if log_start_prev == 0 and log_start == 1:
+            run_no = fetch_last_run_no()
             run_no += 1
-            run_no_tag = 'N17:0'
-            write_status(run_no_tag, run_no)
-
-        tdiff = (time.time() - s_time1)
-
-        if (tdiff >= record_period) and log_start:
-            read_data()
-            log_process_data()
             sp_record_en = 1
-            s_time1 = time.time()
-        elif not log_start and log_start_prev:
+            start_logging = 1
+            # run_x = f'[{run_no}]'
+            print(run_no)
+            print(record_period)
+            print(log_start)
+            write_status((run_no_tag, run_no))
+        elif log_start == 0 and log_start_prev == 1:
             sql_data = fetch_sql_data(run_no)
             sql_para = fetch_sql_para(run_no)
-            export_pdf(sql_data, sql_para)
+            export_pdf(sql_data, sql_para, run_no)
             print_pdf(run_no)
 
-        if (sp_record_en == 1) and log_start:
-            log_para_data()
+        elif log_start == 0:
+            start_logging = 0
+
+        tdiff = (time.time() - s_time1)
+# write data only after the record period
+        if (tdiff >= record_period) and start_logging == 1:
+            s_time1 = time.time()
+            plc_data = read_data()
+            log_process_data(plc_data)
+
+        if sp_record_en == 1 and start_logging == 1:
+            print(f'Data recording process has started for Run No.: {run_no}')
+            plc_para = read_para()
+            log_para_data(plc_para)
+            plc_data = read_data()
+            log_process_data(plc_data)
             sp_record_en = 0
 
-        # blink for plc indicator
-        tdiff1 = (time.time() - s_time2)
-        if (tdiff >= 0.5):
-            s_time2 = time.time()
-
-        if print_start:
-            check_pdf_available = check_run_no()
-            if check_pdf_available:
-                print_pdf(run_no)
+        # blink for plc to SBC connectivity
+        blink_result = ('B13:3/15', blinker(0.5))
+        write_status(blink_result)
+        # print(run_no_for_print)
+        # print(f'Print CMD : {print_cmd}')
+        if print_cmd:
+            file_dir = f'{pwd_here}/reports/CIP_SIP_Report_{run_no_for_print}.pdf'
+            print(file_dir)
+            if os.path.exists(file_dir):
+                print("Printing pdf Report")
+                print_pdf(run_no_for_print)
             else:
-                export_pdf(sql_para, sql_data)
-                print_pdf(run_no)
+                run_no_available = check_run_no(run_no_for_print)
+                if run_no_available == 1:
+                    print('PDF report not present, now creating pdf report.')
+                    # print("fetching data ...")
+                    sql_data = fetch_sql_data(run_no_for_print)
+                    # print("fetching para ...")
+                    sql_para = fetch_sql_para(run_no_for_print)
+                    export_pdf(sql_data, sql_para, run_no_for_print)
+                    print("exporint pdf ..")
+                    print_pdf(run_no_for_print)
+                else:
+                    run_no
+                    print(f'Record of Run No.: {run_no_for_print} not available in database')
 
         if print_cmd and print_cmd_set_bit:
             print_pdf(run_no_for_print)
         time.sleep(0.1)
 
     except Exception as e:
+        logging.error(e)
         print(e)
-        time.sleep(1)
+        time.sleep(2)

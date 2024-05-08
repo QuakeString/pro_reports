@@ -1,5 +1,4 @@
-
-# -------------------INVENIA SYSTEMS ------------------- #
+# ------------------ INVENIA SYSTEMS --------------------#
 # ------------- https://inveniasystems.com ------------- #
 # Version - 0.1
 # Revision - 00
@@ -246,6 +245,7 @@ def read_para():
 def read_ctrl_bits():
     global print_cmd
     global log_start
+    global cop_rept_pd_cmd
     global delete_record
     global wipe_all
     global wipe_all_fb
@@ -254,8 +254,9 @@ def read_ctrl_bits():
     global record_period
     global run_no_for_print
     with SLCDriver('192.168.0.1') as plc:
-        result = plc.read('B13:5/0', 'B13:2/1', 'B13:2/1', 'B13:2/1', 'B13:2/4', 'B13:2/5', 'B13:2/6', 'B13:2/7', 'B13:2/8', 'B13:2/9', 'B13:2/10', 'B13:2/11', 'B13:2/12', 'B13:2/13', 'B13:2/14', 'B13:2/15', 'N17:7', 'N17:8')
+        result = plc.read('B13:5/0', 'B13:2/1', 'B13:2/2', 'B13:2/3', 'B13:2/4', 'B13:2/5', 'B13:2/6', 'B13:2/7', 'B13:2/8', 'B13:2/9', 'B13:2/10', 'B13:2/11', 'B13:2/12', 'B13:2/13', 'B13:2/14', 'B13:2/15', 'N17:7', 'N17:8')
     print_cmd = result[0][1]
+    cop_rept_pd_cmd = result[2][1]
     log_start = result[4][1]
     delete_record = result[6][1]
     wipe_all = result[7][1]
@@ -270,7 +271,14 @@ def read_ctrl_bits():
 
 def write_status(tag_value):
     with SLCDriver('192.168.0.1') as plc:
-        plc.write(tag_value)
+        status = plc.write(tag_value)
+    return status
+
+
+def read_status(tag_value):
+    with SLCDriver('192.168.0.1') as plc:
+        status = plc.read(tag_value)
+    return status
 
 
 def fetch_sql_data(run_no):
@@ -301,6 +309,40 @@ def check_run_no(run_no):
     return result
 
 
+def F10_alter(F10_status, ST9_status, plc_data, count_30):
+
+    if count_30 > 29:
+        ll = 29
+        m = 174
+        n = 175
+        o = 176
+        p = 177
+        q = 178
+        r = 179
+        for a in range(1, 30):
+            F10_status[1][ll] = F10_status[1][ll - 1]
+            ll -= 1
+
+        for b in range(1, 30):
+            F10_status[1][m] = F10_status[1][m - 6]
+            m -= 6
+        for c in range(1, 30):
+            F10_status[1][n] = F10_status[1][n - 6]
+            n -= 6
+        for d in range(1, 30):
+            F10_status[1][o] = F10_status[1][o - 6]
+            o -= 6
+        for e in range(1, 30):
+            F10_status[1][p] = F10_status[1][p - 6]
+            p -= 6
+        for f in range(1, 30):
+            F10_status[1][q] = F10_status[1][q - 6]
+            q -= 6
+        for g in range(1, 30):
+            F10_status[1][r] = F10_status[1][r - 6]
+            r -= 6
+
+
 def fetch_last_run_no():
     cr.execute("SELECT COUNT(*) FROM process_data")
     count = cr.fetchone()
@@ -319,7 +361,7 @@ def move_pdf():
     global run_no
     s = f'{pwd_here}/CIP_SIP_Report_{run_no}' + '.pdf'
     print(f'Source : {s}')
-    d = f'{pwd_here}/Reports/ADL_SVP_Report_{run_no}' + '.pdf'
+    d = f'{pwd_here}/reports/ADL_SVP_Report_{run_no}' + '.pdf'
     report_folder = f'{pwd_here}/Reports'
     print(os.path.exists(report_folder))
     if os.path.exists(report_folder) is False:
@@ -346,8 +388,8 @@ def print_pdf(run_no):
 def copy_report_folder(pendrive_path):
     global pwd_here
     dt = datetime.datetime.now()
-    src_dir = "/home/pi/Desktop/Reports/"
-    dest_dir = pendrive_path + '/' + 'Reports_' + f'{dt.strftime("%Y-%m.%d")}'f'{dt.strftime("_%H-%M")}' + '/'
+    src_dir = "/home/pi/Desktop/reports/"
+    dest_dir = pendrive_path + '/' + 'reports_' + f'{dt.strftime("%Y-%m.%d")}'f'{dt.strftime("_%H-%M")}' + '/'
     shutil.copytree(src_dir, dest_dir)
     print('Folder copied successfully.')
     # plc.write(('ST22:3', 'Successfully Copied'))
@@ -432,11 +474,32 @@ start_logging = 0
 create_process_data_table()
 create_para_table()
 blink = 0
+mount_path = f'/media/{uname}' + '/'  # get the mount directory of pen-drive
+status_tag = 'ST'
+status_msg0 = 'xyz'
+status_msg1 = 'zyz'
+string_tag = 'N17:0{10}'
+max_length = 82  # Replace with actual tag length
+# string_value = "Hello World"
+# string_value = "Hello World"[:max_length] + "\x00" * (max_length - len(string_value))
+# print(string_value)
+# F10_tags = 'F10:0{180}'
+# ST9_tags = 'ST9:0{30}'
+count_30 = 0
+F10_value = [0, 0, 0, 0, 0, 0]
+
+
+"""
+
+"""
+
 
 while True:
     try:
         log_start_prev = log_start  # store log_start previous status
         read_ctrl_bits()
+        # st_read = write_status((string_tag, string_value))
+        # print(st_read[1])
         # print(f'record_period = {record_period}')
         # print(f'log_start = {log_start}')
         if log_start_prev == 0 and log_start == 1:
@@ -444,7 +507,6 @@ while True:
             run_no += 1
             sp_record_en = 1
             start_logging = 1
-            # run_x = f'[{run_no}]'
             print(run_no)
             print(record_period)
             print(log_start)
@@ -471,7 +533,40 @@ while True:
             log_para_data(plc_para)
             plc_data = read_data()
             log_process_data(plc_data)
+            clear_F10 = [0.0] * 180
+            clear_F10_tags = "F10:0{180}"
+            tag_value3 = (clear_F10_tags, clear_F10)
+            write_status(tag_value3)
+            clear_ST9 = ["00:00:00"] * 30
+            clear_ST9_tags = "ST9:0{30}"
+            tag_value4 = (clear_ST9_tags, clear_ST9)
+            write_status(tag_value3)
             sp_record_en = 0
+
+        if (tdiff >= record_period) and count_30 < 30 and start_logging == 1 or sp_record_en == 1 and start_logging == 1:
+            status_time = f'{plc_time}'
+            print(f'plc_time = {plc_time}')
+            ST9_tags = f'ST9:{count_30}'
+            print(f'ST9_tags = {ST9_tags}')
+            status_time = f'{status_time}'[:max_length] + "\x00" * (max_length - len(status_time))
+            tag_value = (ST9_tags, status_time)
+            write_status(tag_value)
+            F10_tags = "F10:" + f'{count_30}' + "{6}"
+            for i in range(0, 6):
+                print(f'i = {i}')
+                F10_value[i + count_30] = plc_data[i + 7][1]
+            tag_value2 = (F10_tags, F10_value)
+            print(f'tag_value2 = {tag_value2}')
+            write_status(tag_value2)
+            count_30 += 1
+            print(f'count_30 = {count_30}')
+        elif (tdiff >= record_period) and count_30 >= 30 and start_logging == 1:
+            F10_status = read_status(F10_tags)
+            F10_value = F10_status[1]
+            ST9_status = read_status(ST9_tags)
+            F10_alter(F10_status, ST9_status, plc_data, count_30)
+            count_30 += 1
+            print(f'count_30 = {count_30}')
 
         # blink for plc to SBC connectivity
         blink_result = ('B13:3/15', blinker(0.5))
@@ -498,9 +593,23 @@ while True:
                 else:
                     run_no
                     print(f'Record of Run No.: {run_no_for_print} not available in database')
+        if os.path.exists(mount_path) is True:
+            print("Pendrive connected")
+            pendrive = os.listdir(mount_path)
+            if len(pendrive) != 0:
+                pendrive_path = mount_path + pendrive[0]
+                pendrive_name = pendrive[0]
+                print(f'Pendrive name : {pendrive}')
+                # write_status((status_tag, pendrive_name))  # have to put a string tag
+                if cop_rept_pd_cmd is True:
+                    # Copy all reports to Pen-drive
+                    copy_report_folder(pendrive_path)
+                    write_status((status_tag, status_msg1))
+            else:
+                pendrive_name = "No Device Connected"
+                write_status((status_tag, status_msg0))  # have to put a
+                # print("No removable mass-storage detected.")
 
-        if print_cmd and print_cmd_set_bit:
-            print_pdf(run_no_for_print)
         time.sleep(0.1)
 
     except Exception as e:
